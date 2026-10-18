@@ -13,6 +13,23 @@ import requests
 app = Flask(__name__)
 DB_PATH = os.path.join(os.path.dirname(__file__), 'clima_chile.db')
 
+# Configuración CORS para soportar frontend desacoplado
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return response
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
 # Ciudades principales y comunas de Chile preconfiguradas
 CIUDADES_CHILE = [
     {"ciudad": "Arica", "region": "Arica y Parinacota", "latitud": -18.4783, "longitud": -70.3126, "zona": "Norte Grande", "timezone": "America/Santiago"},
@@ -196,7 +213,21 @@ def get_uv_category(uv):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return jsonify({
+        "ok": True,
+        "servicio": "ClimaChile API Backend",
+        "estado": "activo",
+        "version": "1.0.0",
+        "endpoints": [
+            "/api/weather",
+            "/api/favorites",
+            "/api/history",
+            "/api/search",
+            "/api/regions",
+            "/api/status"
+        ],
+        "mensaje": "Servidor backend de ClimaChile en ejecución."
+    })
 
 
 @app.route('/api/weather')
@@ -362,7 +393,7 @@ def get_weather():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route('/api/favorites', methods=['GET', 'POST'])
+@app.route('/api/favorites', methods=['GET', 'POST', 'OPTIONS'])
 def handle_favorites():
     conn = get_db()
     if request.method == 'GET':
@@ -398,7 +429,7 @@ def handle_favorites():
         return jsonify({"ok": True, "id": new_id, "message": "Favorito guardado exitosamente"})
 
 
-@app.route('/api/favorites/<int:fav_id>', methods=['DELETE'])
+@app.route('/api/favorites/<int:fav_id>', methods=['DELETE', 'OPTIONS'])
 def delete_favorite(fav_id):
     conn = get_db()
     with conn:
@@ -407,7 +438,7 @@ def delete_favorite(fav_id):
     return jsonify({"ok": True, "message": f"Favorito {fav_id} eliminado"})
 
 
-@app.route('/api/history', methods=['GET', 'DELETE'])
+@app.route('/api/history', methods=['GET', 'DELETE', 'OPTIONS'])
 def handle_history():
     conn = get_db()
     if request.method == 'GET':

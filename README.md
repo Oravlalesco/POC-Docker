@@ -38,52 +38,68 @@ Aplicación web desarrollada con **HTML5, Vanilla CSS y JavaScript**, conectada 
 
 ---
 
-## 🛠️ Estructura del Proyecto
+## 🛠️ Estructura del Proyecto Desacoplado
 
 ```text
 Docker/
-├── app.py                     # Servidor Flask y endpoints REST
-├── clima_chile.db             # Base de datos SQLite (favoritos, historial, roles)
-├── requirements.txt           # Dependencias de Python (Flask, requests)
-├── iniciar.bat                # Script de inicio rápido en Windows
-├── templates/
-│   └── index.html             # Estructura semántica HTML5
-├── static/
+├── backend/                       # Servidor API REST y Base de Datos
+│   ├── app.py                     # Servidor Flask y endpoints REST con CORS
+│   ├── clima_chile.db             # Base de datos SQLite (favoritos, historial)
+│   ├── requirements.txt           # Dependencias Python (Flask, requests, flask-cors)
+│   └── iniciar_backend.bat        # Script de ejecución individual del backend
+│
+├── frontend/                      # Cliente web estático (HTML, CSS, JS)
+│   ├── index.html                 # Estructura semántica HTML5
 │   ├── css/
-│   │   └── styles.css         # Diseño Vanilla CSS moderno
-│   └── js/
-│       └── app.js             # Lógica interactiva Vanilla JS
-└── venv/                      # Entorno virtual de Python
+│   │   └── styles.css             # Diseño Vanilla CSS moderno y glassmorphism
+│   ├── js/
+│   │   └── app.js                 # Lógica interactiva Vanilla JS conectada a la API
+│   └── iniciar_frontend.bat       # Script de ejecución individual del frontend
+│
+├── iniciar.bat                    # Script unificado de inicio rápido en Windows
+├── README.md                      # Documentación del proyecto
+└── venv/                          # Entorno virtual de Python compartido
 ```
 
 ---
 
 ## ⚡ Cómo Ejecutar la Aplicación
 
-### Opción 1: Ejecución con el script automático (Windows)
+### Opción 1: Ejecución completa con el script automático (Recomendado)
 Haz doble clic en:
 ```text
 iniciar.bat
 ```
+Este script abre automáticamente el cliente en tu navegador (`frontend/index.html`) e inicia el servidor API en segundo plano en `http://127.0.0.1:5000`.
 
-### Opción 2: Ejecución desde la terminal (PowerShell o CMD)
-1. Activar el entorno virtual o usar el ejecutable directo de `venv`:
-   ```powershell
-   .\venv\Scripts\python.exe app.py
-   ```
-2. Abrir en cualquier navegador web:
-   ```text
-   http://127.0.0.1:5000
-   ```
+### Opción 2: Ejecución individual por carpetas
+
+#### 1. Iniciar el Backend (API Flask)
+- Mediante script: doble clic en `backend/iniciar_backend.bat`
+- O desde la terminal:
+  ```powershell
+  cd backend
+  ..\venv\Scripts\python.exe app.py
+  ```
+  La API estará disponible en `http://127.0.0.1:5000`.
+
+#### 2. Iniciar el Frontend
+- Doble clic en `frontend/index.html` para abrirlo directamente en el navegador.
+- O mediante servidor local HTTP:
+  ```powershell
+  cd frontend
+  python -m http.server 3000
+  ```
+  Y abrir en tu navegador: `http://localhost:3000`.
 
 ---
 
 ## 🌐 Endpoints de la API Backend
 
-- `GET /`: Interfaz web interactiva.
+- `GET /`: Estado general del backend e información de rutas.
 - `GET /api/weather?lat={lat}&lon={lon}&ciudad={ciudad}&region={region}`: Datos meteorológicos actuales, pronóstico por horas (24h) y diario (7 días).
 - `GET /api/search?q={nombre}`: Búsqueda y autocompletado de comunas y ciudades de Chile.
-- `GET /api/favorites`: Listado de ciudades favoritas almacenadas en la base de datos.
+- `GET /api/favorites`: Listado de ciudades favoritas almacenadas en SQLite.
 - `POST /api/favorites`: Guarda una nueva ciudad favorita en SQLite.
 - `DELETE /api/favorites/<id>`: Elimina un favorito de SQLite.
 - `GET /api/history`: Últimas 20 consultas registradas.

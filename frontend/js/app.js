@@ -7,6 +7,15 @@
   'use strict';
 
   // ==========================================
+  // CONFIGURACIÓN API (BACKEND DESACOPLADO)
+  // ==========================================
+  const API_BASE = window.API_BASE_URL || (
+    window.location.protocol === 'file:' || (window.location.port !== '5000' && window.location.port !== '')
+      ? 'http://127.0.0.1:5000'
+      : ''
+  );
+
+  // ==========================================
   // ESTADO DE LA APLICACIÓN
   // ==========================================
   const state = {
@@ -159,7 +168,7 @@
       state.region = region;
       state.timezone = timezone || 'America/Santiago';
       
-      const url = `/api/weather?lat=${lat}&lon=${lon}&ciudad=${encodeURIComponent(ciudad)}&region=${encodeURIComponent(region)}&timezone=${encodeURIComponent(state.timezone)}`;
+      const url = `${API_BASE}/api/weather?lat=${lat}&lon=${lon}&ciudad=${encodeURIComponent(ciudad)}&region=${encodeURIComponent(region)}&timezone=${encodeURIComponent(state.timezone)}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -300,7 +309,7 @@
   // ==========================================
   async function loadFavorites() {
     try {
-      const res = await fetch('/api/favorites');
+      const res = await fetch(`${API_BASE}/api/favorites`);
       const data = await res.json();
       if (data.ok) {
         state.favorites = data.favorites || [];
@@ -339,7 +348,7 @@
     if (existing) {
       // Eliminar
       try {
-        await fetch(`/api/favorites/${existing.id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/favorites/${existing.id}`, { method: 'DELETE' });
         await loadFavorites();
       } catch (e) {
         console.error('Error al eliminar favorito:', e);
@@ -347,7 +356,7 @@
     } else {
       // Agregar
       try {
-        await fetch('/api/favorites', {
+        await fetch(`${API_BASE}/api/favorites`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -400,7 +409,7 @@
       // Clic para borrar
       row.querySelector('.btn-delete-fav').addEventListener('click', async (e) => {
         e.stopPropagation();
-        await fetch(`/api/favorites/${fav.id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/favorites/${fav.id}`, { method: 'DELETE' });
         await loadFavorites();
       });
 
@@ -416,7 +425,7 @@
     dom.historyListContainer.innerHTML = '<p class="text-dim">Cargando historial...</p>';
 
     try {
-      const res = await fetch('/api/history');
+      const res = await fetch(`${API_BASE}/api/history`);
       const data = await res.json();
       if (!data.ok || !data.history || data.history.length === 0) {
         dom.historyListContainer.innerHTML = '<p class="text-dim">No hay consultas registradas aún.</p>';
@@ -452,7 +461,7 @@
   async function clearHistory() {
     if (!confirm('¿Deseas vaciar el historial de consultas de la base de datos?')) return;
     try {
-      await fetch('/api/history', { method: 'DELETE' });
+      await fetch(`${API_BASE}/api/history`, { method: 'DELETE' });
       openHistoryModal();
     } catch (e) {
       console.error(e);
@@ -475,7 +484,7 @@
 
       state.searchDebounceTimer = setTimeout(async () => {
         try {
-          const res = await fetch(`/api/search?q=${encodeURIComponent(val)}`);
+          const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(val)}`);
           const data = await res.json();
           renderSearchDropdown(data.results || []);
         } catch (err) {
@@ -543,7 +552,7 @@
     dom.searchDropdown.style.display = 'none';
     showStatus(`Buscando "${query}"...`);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       if (data.ok && data.results && data.results.length > 0) {
         const first = data.results[0];
