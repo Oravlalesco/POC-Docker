@@ -1,0 +1,5 @@
+iniciar_frontend.bat
+Dockerfile
+.dockerignore
+.git
+.gitignore
