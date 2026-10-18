@@ -520,10 +520,10 @@ def status():
 
 
 if __name__ == '__main__':
-    # Ejecución local en venv
     port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
     print(f"\n=======================================================")
-    print(f" Servidor de Clima Chile iniciado en http://127.0.0.1:{port}")
-    print(f" Entorno: venv (sin contenedor)")
+    print(f" Servidor de Clima Chile iniciado en http://{host}:{port}")
     print(f"=======================================================\n")
-    app.run(host='127.0.0.1', port=port, debug=True)
+    app.run(host=host, port=port, debug=debug_mode)

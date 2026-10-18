@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: climachile-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - HOST=0.0.0.0
+      - FLASK_DEBUG=True
+    volumes:
+      - ./backend/clima_chile.db:/app/clima_chile.db
+    restart: unless-stopped
+    networks:
+      climachile-net:
+        aliases:
+          - backend
+          - climachile-backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: climachile-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - climachile-net
+
+networks:
+  climachile-net:
+    driver: bridge

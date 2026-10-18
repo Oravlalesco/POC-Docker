@@ -46,6 +46,8 @@ Docker/
 │   ├── app.py                     # Servidor Flask y endpoints REST con CORS
 │   ├── clima_chile.db             # Base de datos SQLite (favoritos, historial)
 │   ├── requirements.txt           # Dependencias Python (Flask, requests, flask-cors)
+│   ├── Dockerfile                 # Imagen Docker de Backend (Python 3.11-slim)
+│   ├── .dockerignore              # Exclusiones de contexto Docker
 │   └── iniciar_backend.bat        # Script de ejecución individual del backend
 │
 ├── frontend/                      # Cliente web estático (HTML, CSS, JS)
@@ -54,9 +56,13 @@ Docker/
 │   │   └── styles.css             # Diseño Vanilla CSS moderno y glassmorphism
 │   ├── js/
 │   │   └── app.js                 # Lógica interactiva Vanilla JS conectada a la API
+│   ├── nginx.conf                 # Configuración de Nginx y proxy inverso
+│   ├── Dockerfile                 # Imagen Docker de Frontend (Nginx Alpine)
+│   ├── .dockerignore              # Exclusiones de contexto Docker
 │   └── iniciar_frontend.bat       # Script de ejecución individual del frontend
 │
 ├── iniciar.bat                    # Script unificado de inicio rápido en Windows
+├── docker-compose.yml             # Orquestación de contenedores (Frontend + Backend)
 ├── README.md                      # Documentación del proyecto
 └── venv/                          # Entorno virtual de Python compartido
 ```
@@ -91,6 +97,64 @@ Este script abre automáticamente el cliente en tu navegador (`frontend/index.ht
   python -m http.server 3000
   ```
   Y abrir en tu navegador: `http://localhost:3000`.
+
+### Opción 3: Ejecución con Docker Compose (Recomendado)
+
+Con Docker Compose levantas toda la arquitectura (red, backend, frontend y persistencia de base de datos) con un único comando:
+
+#### 1. Iniciar toda la infraestructura (construye y levanta en segundo plano)
+```powershell
+docker compose up --build -d
+```
+
+#### 2. Verificar el estado de los contenedores
+```powershell
+docker compose ps
+```
+
+#### 3. Ver los logs combinados en tiempo real
+```powershell
+docker compose logs -f
+```
+
+#### 4. Acceder a la aplicación
+- **Frontend Web**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:5000](http://localhost:5000)
+
+#### 5. Detener y limpiar todo
+```powershell
+docker compose down
+```
+
+---
+
+### Opción 4: Ejecución manual con Docker CLI (Sin Compose)
+
+Si prefieres controlar cada contenedor manualmente por separado:
+
+#### 1. Crear red de Docker
+```powershell
+docker network create climachile-net
+```
+
+#### 2. Construir y correr el contenedor Backend
+```powershell
+docker build -t climachile-backend ./backend
+docker run -d --name climachile-backend --network climachile-net -p 5000:5000 climachile-backend
+```
+
+#### 3. Construir y correr el contenedor Frontend
+```powershell
+docker build -t climachile-frontend ./frontend
+docker run -d --name climachile-frontend --network climachile-net -p 3000:80 climachile-frontend
+```
+
+#### 4. Detener y limpiar los contenedores
+```powershell
+docker stop climachile-frontend climachile-backend
+docker rm climachile-frontend climachile-backend
+docker network rm climachile-net
+```
 
 ---
 
