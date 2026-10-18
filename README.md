@@ -63,6 +63,7 @@ Docker/
 │
 ├── iniciar.bat                    # Script unificado de inicio rápido en Windows
 ├── docker-compose.yml             # Orquestación de contenedores (Frontend + Backend)
+├── CHANGELOG.md                   # Historial oficial de cambios y versiones
 ├── README.md                      # Documentación del proyecto
 └── venv/                          # Entorno virtual de Python compartido
 ```
