@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Portal meteorológico en vivo para Chile. Monitoreo del clima en tiempo real, índice UV, pronóstico extendido a 7 días y registro en base de datos local.">
+  <title>ClimaChile • Portal Meteorológico en Vivo</title>
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Estilos Vanilla CSS -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body data-mood="mostly-sunny">
+  <!-- Fondo decorativo dinámico con orbes de gradiente -->
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-3" aria-hidden="true"></div>
+
+  <!-- Contenedor Principal -->
+  <div class="app-container">
+    
+    <!-- Barra Superior / Header -->
+    <header class="app-header" id="main-header">
+      <div class="brand-group">
+        <div class="brand-badge" id="chile-flag-badge" title="Chile">
+          <span class="flag-icon">🇨🇱</span>
+          <span class="live-indicator">LIVE</span>
+        </div>
+        <div class="brand-titles">
+          <h1 class="brand-title" id="app-heading-title">ClimaChile</h1>
+          <p class="brand-subtitle" id="app-heading-subtitle">Servicio Meteorológico Nacional en Vivo • venv local</p>
+        </div>
+      </div>
+
+      <!-- Reloj oficial multidistrital de Chile -->
+      <div class="chile-clocks" id="chile-clocks-bar">
+        <div class="clock-chip" id="clock-continental" title="Zona Continental (UTC-3)">
+          <span class="clock-zone">Continental:</span>
+          <span class="clock-time" id="time-continental">--:--:--</span>
+        </div>
+        <div class="clock-chip" id="clock-magallanes" title="Zona Magallanes y Antártica (UTC-3)">
+          <span class="clock-zone">Magallanes:</span>
+          <span class="clock-time" id="time-magallanes">--:--:--</span>
+        </div>
+        <div class="clock-chip" id="clock-insular" title="Rapa Nui e Insular (UTC-5)">
+          <span class="clock-zone">Rapa Nui:</span>
+          <span class="clock-time" id="time-insular">--:--:--</span>
+        </div>
+      </div>
+
+      <!-- Botones de Acción en Cabecera -->
+      <div class="header-actions">
+        <button type="button" class="btn-icon" id="btn-open-favorites" title="Ver ciudades favoritas">
+          <span class="btn-symbol">⭐</span>
+          <span class="btn-label">Favoritos</span>
+          <span class="badge-count" id="favorites-count-badge">0</span>
+        </button>
+        <button type="button" class="btn-icon" id="btn-open-history" title="Ver historial de consultas en base de datos">
+          <span class="btn-symbol">📜</span>
+          <span class="btn-label">Historial</span>
+        </button>
+        <button type="button" class="btn-icon" id="btn-refresh-weather" title="Actualizar datos meteorológicos">
+          <span class="btn-symbol">🔄</span>
+          <span class="btn-label">Refrescar</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Barra de Búsqueda y Filtros Rápidos de Chile -->
+    <section class="search-section" id="search-section">
+      <div class="search-bar-wrapper">
+        <div class="search-input-box">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input 
+            type="text" 
+            id="input-city-search" 
+            placeholder="Buscar ciudad o comuna de Chile (ej: Santiago, Viña del Mar, Temuco, Punta Arenas...)" 
+            autocomplete="off"
+            aria-label="Buscar ciudad chilena"
+          >
+          <button type="button" id="btn-clear-search" class="btn-clear-input" style="display: none;" title="Limpiar búsqueda">✕</button>
+        </div>
+        <button type="button" class="btn-primary" id="btn-search-trigger">
+          <span>Consultar</span>
+        </button>
+        <button type="button" class="btn-secondary" id="btn-geo-detect" title="Detectar mi ubicación actual">
+          <span>📍 Mi Ubicación</span>
+        </button>
+
+        <!-- Dropdown de Autocompletado -->
+        <div class="search-dropdown" id="search-dropdown" style="display: none;"></div>
+      </div>
+
+      <!-- Selector Rápido de Ciudades Clave de Chile -->
+      <div class="quick-cities-bar" id="quick-cities-bar">
+        <span class="quick-label">Acceso Rápido:</span>
+        <div class="quick-chips-wrapper" id="quick-chips-list">
+          <button type="button" class="chip active" data-city="Santiago" data-region="Región Metropolitana" data-lat="-33.4489" data-lon="-70.6693" data-tz="America/Santiago">Santiago</button>
+          <button type="button" class="chip" data-city="Valparaíso" data-region="Valparaíso" data-lat="-33.0472" data-lon="-71.6127" data-tz="America/Santiago">Valparaíso</button>
+          <button type="button" class="chip" data-city="Concepción" data-region="Biobío" data-lat="-36.8270" data-lon="-73.0503" data-tz="America/Santiago">Concepción</button>
+          <button type="button" class="chip" data-city="La Serena" data-region="Coquimbo" data-lat="-29.9027" data-lon="-71.2519" data-tz="America/Santiago">La Serena</button>
+          <button type="button" class="chip" data-city="Puerto Montt" data-region="Los Lagos" data-lat="-41.4693" data-lon="-72.9424" data-tz="America/Santiago">Puerto Montt</button>
+          <button type="button" class="chip" data-city="Punta Arenas" data-region="Magallanes" data-lat="-53.1638" data-lon="-70.9171" data-tz="America/Punta_Arenas">Punta Arenas</button>
+          <button type="button" class="chip" data-city="Rapa Nui (Isla de Pascua)" data-region="Valparaíso (Insular)" data-lat="-27.1127" data-lon="-109.3497" data-tz="Pacific/Easter">Rapa Nui</button>
+          <button type="button" class="chip" data-city="San Pedro de Atacama" data-region="Antofagasta" data-lat="-22.9115" data-lon="-68.2015" data-tz="America/Santiago">San Pedro</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Estado de Carga y Mensajes -->
+    <div class="status-banner" id="status-banner" style="display: none;">
+      <div class="spinner" id="loading-spinner" aria-hidden="true"></div>
+      <span id="status-banner-text">Consultando servicio meteorológico...</span>
+    </div>
+
+    <!-- Panel Principal del Clima -->
+    <main class="weather-dashboard" id="weather-dashboard">
+      
+      <!-- Fila 1: Hero Card y Métricas Clave -->
+      <section class="dashboard-grid-top">
+        
+        <!-- Tarjeta Principal del Clima Actual -->
+        <article class="weather-card hero-weather-card" id="card-current-weather">
+          <div class="hero-header">
+            <div class="location-info">
+              <div class="location-badge">
+                <span class="pin-symbol">📍</span>
+                <span id="current-region-label">Región Metropolitana</span>
+              </div>
+              <h2 class="current-city-name" id="current-city-name">Santiago</h2>
+              <p class="current-coords" id="current-coords">Lat: -33.45° | Lon: -70.67° • Zona Horaria: America/Santiago</p>
+            </div>
+            <button type="button" class="btn-fav-star" id="btn-toggle-favorite" title="Guardar en Favoritos" aria-label="Guardar en favoritos">
+              <span id="fav-star-icon">☆</span>
+            </button>
+          </div>
+
+          <div class="hero-body">
+            <div class="hero-temp-container">
+              <div class="temp-display-row">
+                <span class="hero-weather-icon" id="hero-weather-icon">☀️</span>
+                <div class="temp-value-box">
+                  <span class="hero-temp-number" id="hero-temp-value">--</span>
+                  <div class="unit-toggle-group">
+                    <button type="button" class="unit-btn active" id="btn-unit-c" title="Grados Celsius">°C</button>
+                    <button type="button" class="unit-btn" id="btn-unit-f" title="Grados Fahrenheit">°F</button>
+                  </div>
+                </div>
+              </div>
+              <div class="hero-condition-pill" id="hero-condition-pill">
+                <span id="hero-condition-text">Cargando...</span>
+              </div>
+              <p class="hero-feels-like" id="hero-feels-like">Sensación térmica: <span>--°C</span></p>
+            </div>
+
+            <div class="hero-summary-tags">
+              <div class="summary-pill" id="pill-day-night">
+                <span class="pill-dot"></span>
+                <span id="day-night-text">Día</span>
+              </div>
+              <div class="summary-pill">
+                <span>⏱️ Última actualización: <strong id="last-update-time">--:--</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Métricas Rápidas en Cinta -->
+          <div class="hero-metrics-ribbon" id="hero-metrics-ribbon">
+            <div class="ribbon-item" id="metric-wind">
+              <span class="ribbon-icon">💨</span>
+              <div class="ribbon-info">
+                <span class="ribbon-label">Viento</span>
+                <span class="ribbon-val" id="val-wind">-- km/h</span>
+                <span class="ribbon-sub" id="val-wind-dir">Dir: --</span>
+              </div>
+            </div>
+            <div class="ribbon-item" id="metric-humidity">
+              <span class="ribbon-icon">💧</span>
+              <div class="ribbon-info">
+                <span class="ribbon-label">Humedad</span>
+                <span class="ribbon-val" id="val-humidity">--%</span>
+                <span class="ribbon-sub" id="sub-humidity">Relativa</span>
+              </div>
+            </div>
+            <div class="ribbon-item" id="metric-pressure">
+              <span class="ribbon-icon">⏲️</span>
+              <div class="ribbon-info">
+                <span class="ribbon-label">Presión</span>
+                <span class="ribbon-val" id="val-pressure">-- hPa</span>
+                <span class="ribbon-sub">Nivel superficie</span>
+              </div>
+            </div>
+            <div class="ribbon-item" id="metric-rain">
+              <span class="ribbon-icon">🌧️</span>
+              <div class="ribbon-info">
+                <span class="ribbon-label">Precipitación</span>
+                <span class="ribbon-val" id="val-rain">0.0 mm</span>
+                <span class="ribbon-sub">Lluvia actual</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Columna Lateral: Tarjeta Radiación UV e Información Ambiental -->
+        <div class="side-metrics-column">
+          
+          <!-- Tarjeta Índice UV de Chile -->
+          <article class="weather-card uv-card" id="card-uv-index">
+            <div class="card-title-row">
+              <div class="title-with-icon">
+                <span class="card-header-icon">☀️</span>
+                <h3>Índice UV y Protección</h3>
+              </div>
+              <span class="badge-tag">Chile MINSAL</span>
+            </div>
+            <div class="uv-gauge-container">
+              <div class="uv-number-box">
+                <span class="uv-val" id="val-uv-index">--</span>
+                <span class="uv-cat-pill" id="pill-uv-category">Moderado</span>
+              </div>
+              <div class="uv-meter-bar">
+                <div class="uv-meter-fill" id="uv-meter-fill" style="width: 30%;"></div>
+              </div>
+              <div class="uv-scale-labels">
+                <span>0 Bajo</span>
+                <span>3 Mod</span>
+                <span>6 Alto</span>
+                <span>8 Muy Alto</span>
+                <span>11+ Ext</span>
+              </div>
+            </div>
+            <div class="uv-advice-box" id="uv-advice-box">
+              <p class="uv-advice-text" id="uv-advice-text">Recomendación médica y de fotoprotección para el territorio chileno.</p>
+            </div>
+          </article>
+
+          <!-- Tarjeta Viento, Brújula y Sol -->
+          <article class="weather-card sun-wind-card" id="card-sun-wind">
+            <div class="card-title-row">
+              <div class="title-with-icon">
+                <span class="card-header-icon">🧭</span>
+                <h3>Viento y Luz Solar</h3>
+              </div>
+            </div>
+            <div class="sun-wind-grid">
+              <div class="compass-box">
+                <div class="compass-circle">
+                  <div class="compass-arrow" id="compass-arrow">▲</div>
+                  <span class="compass-point north">N</span>
+                  <span class="compass-point south">S</span>
+                  <span class="compass-point east">E</span>
+                  <span class="compass-point west">O</span>
+                </div>
+                <div class="compass-data">
+                  <span class="compass-heading" id="compass-heading-text">Viento S (180°)</span>
+                  <span class="compass-speed" id="compass-speed-text">-- km/h</span>
+                </div>
+              </div>
+              <div class="sun-times-box">
+                <div class="sun-row">
+                  <span class="sun-icon">🌅</span>
+                  <div class="sun-text">
+                    <span class="sun-label">Amanecer</span>
+                    <strong class="sun-val" id="val-sunrise">--:--</strong>
+                  </div>
+                </div>
+                <div class="sun-row">
+                  <span class="sun-icon">🌇</span>
+                  <div class="sun-text">
+                    <span class="sun-label">Atardecer</span>
+                    <strong class="sun-val" id="val-sunset">--:--</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- Pronóstico por Horas (Próximas 24 Horas) -->
+      <section class="forecast-section" id="section-hourly-forecast">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <span class="section-icon">🕒</span>
+            <h3 class="section-title">Pronóstico por Horas (Próximas 24 Horas)</h3>
+          </div>
+          <span class="section-hint">Desplaza horizontalmente para explorar el día</span>
+        </div>
+        <div class="hourly-cards-slider" id="hourly-cards-container">
+          <!-- Tarjetas horarias generadas dinámicamente -->
+        </div>
+      </section>
+
+      <!-- Pronóstico Extendido a 7 Días -->
+      <section class="forecast-section" id="section-daily-forecast">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <span class="section-icon">📅</span>
+            <h3 class="section-title">Pronóstico Extendido a 7 Días</h3>
+          </div>
+          <span class="section-hint">Tendencia térmica y probabilidades de lluvia</span>
+        </div>
+        <div class="daily-cards-grid" id="daily-cards-container">
+          <!-- Tarjetas diarias generadas dinámicamente -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal / Drawer de Favoritos -->
+    <div class="modal-backdrop" id="modal-favorites-backdrop" style="display: none;">
+      <div class="modal-panel" id="modal-favorites-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span>⭐</span>
+            <h3>Ciudades Favoritas en Chile</h3>
+          </div>
+          <button type="button" class="btn-close-modal" id="btn-close-favorites" title="Cerrar modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">Ciudades sincronizadas con la base de datos local SQLite (<code>clima_chile.db</code>):</p>
+          <div class="favorites-list" id="favorites-list-container">
+            <!-- Lista generada con JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal / Drawer de Historial -->
+    <div class="modal-backdrop" id="modal-history-backdrop" style="display: none;">
+      <div class="modal-panel" id="modal-history-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span>📜</span>
+            <h3>Historial de Consultas Meteorológicas</h3>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-danger-outline" id="btn-clear-history">Limpiar</button>
+            <button type="button" class="btn-close-modal" id="btn-close-history" title="Cerrar modal">✕</button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">Registros almacenados en la tabla <code>historial_consultas</code> de SQLite:</p>
+          <div class="history-list" id="history-list-container">
+            <!-- Lista generada con JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Informativo -->
+    <footer class="app-footer" id="app-footer">
+      <div class="footer-content">
+        <div class="footer-left">
+          <p><strong>ClimaChile Portal</strong> • Desarrollado con HTML5, Vanilla CSS y JavaScript</p>
+          <p class="sub-tech">Servidor Flask en entorno virtual Python (<code>venv</code>) • Base de datos SQLite <code>clima_chile.db</code></p>
+        </div>
+        <div class="footer-right">
+          <span class="badge-status online">● API Open-Meteo Conectada</span>
+          <span class="badge-status env">🐍 Python venv Activo</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Script Principal de la Aplicación -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
