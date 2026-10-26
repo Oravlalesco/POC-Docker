@@ -5,14 +5,14 @@ Backend Flask conectado con Open-Meteo API y Base de Datos SQLite clima_chile.db
 
 from requests import exceptions
 import os
-import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 import requests
+import psycopg
+from psycopg.rows import dict_row
 
 app = Flask(__name__)
-DB_PATH = os.path.join(os.path.dirname(__file__), 'clima_chile.db')
-
+DATABASE_URL = os.environ.get('DATABASE_URL')
 # Configuración CORS para soportar frontend desacoplado
 @app.before_request
 def handle_preflight():
@@ -96,85 +96,18 @@ WMO_CODES = {
 
 
 def get_db():
-    try:
-        con = sqlite3.connect(DB_PATH)
-        con.row_factory = sqlite3.Row
-        return con
-    except sqlite3.Error as e:
-        print(f"Error al conectar con la base de datos: {e}")
-        return None
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "Falta configurar la variable de entorno DATABASE_URL"
+        )
+
+    return psycopg.connect(
+        DATABASE_URL,
+        row_factory=dict_row
+    )
 
 
-def init_db():
-    conn = get_db()
-    if conn is None:
-        print("Error al conectar con la base de datos, no se puede inicializar")
-        return
-    with conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS rol (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT UNIQUE NOT NULL,
-                descripcion TEXT,
-                activo INTEGER DEFAULT 1
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                rol_id INTEGER NOT NULL,
-                activo INTEGER DEFAULT 1,
-                creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (rol_id) REFERENCES rol (id) ON DELETE RESTRICT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS favoritos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ciudad TEXT NOT NULL,
-                region TEXT NOT NULL,
-                latitud REAL NOT NULL,
-                longitud REAL NOT NULL,
-                orden INTEGER DEFAULT 0,
-                creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS historial_consultas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ciudad TEXT NOT NULL,
-                region TEXT,
-                temperatura REAL,
-                sensacion_termica REAL,
-                condicion TEXT,
-                humedad INTEGER,
-                viento_kmh REAL,
-                indice_uv REAL,
-                consultado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
 
-        # Si no hay favoritos, sembramos las principales ciudades de Chile
-        count = conn.execute("SELECT COUNT(*) FROM favoritos").fetchone()[0]
-        if count == 0:
-            defaults = [
-                ("Santiago", "Región Metropolitana", -33.4489, -70.6693, 1),
-                ("Valparaíso", "Valparaíso", -33.0472, -71.6127, 2),
-                ("Concepción", "Biobío", -36.8270, -73.0503, 3),
-                ("Puerto Montt", "Los Lagos", -41.4693, -72.9424, 4),
-                ("Punta Arenas", "Magallanes", -53.1638, -70.9171, 5),
-                ("Rapa Nui", "Valparaíso (Insular)", -27.1127, -109.3497, 6)
-            ]
-            conn.executemany(
-                "INSERT INTO favoritos (ciudad, region, latitud, longitud, orden) VALUES (?, ?, ?, ?, ?)",
-                defaults
-            )
-    conn.close()
-
-
-init_db()
 
 
 def degree_to_cardinal(deg):
@@ -336,14 +269,14 @@ def get_weather():
                 "sunset": d_sunset[j].split('T')[1][:5] if j < len(d_sunset) and 'T' in d_sunset[j] else ""
             })
 
-        # Registrar consulta en historial_consultas de la base de datos
+                # Registrar consulta en el historial de PostgreSQL
         try:
-            conn = get_db()
-            with conn:
+            with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO historial_consultas 
-                    (ciudad, region, temperatura, sensacion_termica, condicion, humedad, viento_kmh, indice_uv)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO historial_consultas
+                    (ciudad, region, temperatura, sensacion_termica, condicion,
+                     humedad, viento_kmh, indice_uv)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     ciudad,
                     region,
@@ -354,9 +287,11 @@ def get_weather():
                     current.get('wind_speed_10m'),
                     uv
                 ))
-            conn.close()
         except Exception as db_err:
-            print(f"Error guardando historial: {db_err}")
+            app.logger.exception(
+                "Error guardando historial: %s",
+                db_err
+            )
 
         # Retornar respuesta estructurada
         return jsonify({
@@ -395,68 +330,103 @@ def get_weather():
 
 @app.route('/api/favorites', methods=['GET', 'POST', 'OPTIONS'])
 def handle_favorites():
-    conn = get_db()
     if request.method == 'GET':
-        rows = conn.execute("SELECT id, ciudad, region, latitud, longitud, orden, creado_en FROM favoritos ORDER BY orden ASC, id ASC").fetchall()
-        favorites = [dict(row) for row in rows]
-        conn.close()
-        return jsonify({"ok": True, "favorites": favorites})
+        with get_db() as conn:
+            rows = conn.execute("""
+                SELECT id, ciudad, region, latitud, longitud, orden,
+                       to_char(
+                           creado_en,
+                           'YYYY-MM-DD"T"HH24:MI:SS'
+                       ) AS creado_en
+                FROM favoritos
+                ORDER BY orden ASC, id ASC
+            """).fetchall()
 
-    elif request.method == 'POST':
-        data = request.get_json() or {}
-        ciudad = data.get('ciudad')
-        region = data.get('region', 'Chile')
-        lat = data.get('latitud')
-        lon = data.get('longitud')
+        return jsonify({"ok": True, "favorites": rows})
 
-        if not ciudad or lat is None or lon is None:
-            conn.close()
-            return jsonify({"ok": False, "error": "Faltan parámetros requeridos (ciudad, latitud, longitud)"}), 400
+    data = request.get_json() or {}
+    ciudad = data.get('ciudad')
+    region = data.get('region', 'Chile')
+    lat = data.get('latitud')
+    lon = data.get('longitud')
 
-        with conn:
-            # Comprobar si ya existe
-            existing = conn.execute("SELECT id FROM favoritos WHERE ciudad = ?", (ciudad,)).fetchone()
-            if existing:
-                conn.close()
-                return jsonify({"ok": True, "id": existing['id'], "message": "Ya estaba en favoritos"})
+    if not ciudad or lat is None or lon is None:
+        return jsonify({
+            "ok": False,
+            "error": "Faltan parámetros requeridos (ciudad, latitud, longitud)"
+        }), 400
 
-            cursor = conn.execute(
-                "INSERT INTO favoritos (ciudad, region, latitud, longitud) VALUES (?, ?, ?, ?)",
-                (ciudad, region, float(lat), float(lon))
-            )
-            new_id = cursor.lastrowid
-        conn.close()
-        return jsonify({"ok": True, "id": new_id, "message": "Favorito guardado exitosamente"})
+    with get_db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM favoritos WHERE ciudad = %s",
+            (ciudad,)
+        ).fetchone()
+
+        if existing:
+            return jsonify({
+                "ok": True,
+                "id": existing['id'],
+                "message": "Ya estaba en favoritos"
+            })
+
+        row = conn.execute("""
+            INSERT INTO favoritos (ciudad, region, latitud, longitud)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """, (
+            ciudad,
+            region,
+            float(lat),
+            float(lon)
+        )).fetchone()
+
+    return jsonify({
+        "ok": True,
+        "id": row['id'],
+        "message": "Favorito guardado exitosamente"
+    })
 
 
 @app.route('/api/favorites/<int:fav_id>', methods=['DELETE', 'OPTIONS'])
 def delete_favorite(fav_id):
-    conn = get_db()
-    with conn:
-        conn.execute("DELETE FROM favoritos WHERE id = ?", (fav_id,))
-    conn.close()
-    return jsonify({"ok": True, "message": f"Favorito {fav_id} eliminado"})
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM favoritos WHERE id = %s",
+            (fav_id,)
+        )
+
+    return jsonify({
+        "ok": True,
+        "message": f"Favorito {fav_id} eliminado"
+    })
 
 
 @app.route('/api/history', methods=['GET', 'DELETE', 'OPTIONS'])
 def handle_history():
-    conn = get_db()
     if request.method == 'GET':
-        rows = conn.execute("""
-            SELECT id, ciudad, region, temperatura, sensacion_termica, condicion, humedad, viento_kmh, indice_uv, consultado_en 
-            FROM historial_consultas 
-            ORDER BY id DESC 
-            LIMIT 20
-        """).fetchall()
-        history = [dict(row) for row in rows]
-        conn.close()
-        return jsonify({"ok": True, "history": history})
+        with get_db() as conn:
+            rows = conn.execute("""
+                SELECT id, ciudad, region, temperatura,
+                       sensacion_termica, condicion, humedad,
+                       viento_kmh, indice_uv,
+                       to_char(
+                           consultado_en,
+                           'YYYY-MM-DD"T"HH24:MI:SS'
+                       ) AS consultado_en
+                FROM historial_consultas
+                ORDER BY id DESC
+                LIMIT 20
+            """).fetchall()
 
-    elif request.method == 'DELETE':
-        with conn:
-            conn.execute("DELETE FROM historial_consultas")
-        conn.close()
-        return jsonify({"ok": True, "message": "Historial limpiado"})
+        return jsonify({"ok": True, "history": rows})
+
+    with get_db() as conn:
+        conn.execute("DELETE FROM historial_consultas")
+
+    return jsonify({
+        "ok": True,
+        "message": "Historial limpiado"
+    })
 
 
 @app.route('/api/search')

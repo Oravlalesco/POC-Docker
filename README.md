@@ -1,6 +1,6 @@
 # 🇨🇱 ClimaChile - Aplicación Web Meteorológica en Vivo
 
-Aplicación web desarrollada con **HTML5, Vanilla CSS y JavaScript**, conectada con la API meteorológica de **Open-Meteo** (sin límites ni claves requeridas) y un servidor backend ligero en **Python Flask** ejecutado mediante un entorno virtual (`venv`), persistiendo datos en SQLite local (`clima_chile.db`).
+Aplicación web desarrollada con **HTML5, Vanilla CSS y JavaScript**, conectada con la API meteorológica de **Open-Meteo** (sin límites ni claves requeridas) y un servidor backend ligero en **Python Flask** ejecutado mediante un entorno virtual (`venv`), persistiendo datos en PostgreSQL en un contenedor Docker con datos persistidos en el volumen postgres-data.
 
 ---
 
@@ -29,7 +29,7 @@ Aplicación web desarrollada con **HTML5, Vanilla CSS y JavaScript**, conectada 
    - Buscador con autocompletado en vivo para comunas y localidades de Chile.
    - Botón de **"📍 Mi Ubicación"** con geolocalización de coordenadas del navegador.
 
-6. **Integración con Base de Datos SQLite (`clima_chile.db`)**:
+6. **Integración con “Base de Datos PostgreSQL”**:
    - **Favoritos (`favoritos`)**: Guarda y quita ciudades favoritas con la estrella ⭐ directamente sincronizadas con la base de datos.
    - **Historial (`historial_consultas`)**: Cada consulta registra automáticamente la temperatura, humedad, viento y condición.
 
@@ -44,7 +44,6 @@ Aplicación web desarrollada con **HTML5, Vanilla CSS y JavaScript**, conectada 
 Docker/
 ├── backend/                       # Servidor API REST y Base de Datos
 │   ├── app.py                     # Servidor Flask y endpoints REST con CORS
-│   ├── clima_chile.db             # Base de datos SQLite (favoritos, historial)
 │   ├── requirements.txt           # Dependencias Python (Flask, requests, flask-cors)
 │   ├── Dockerfile                 # Imagen Docker de Backend (Python 3.11-slim)
 │   ├── .dockerignore              # Exclusiones de contexto Docker
@@ -61,6 +60,8 @@ Docker/
 │   ├── .dockerignore              # Exclusiones de contexto Docker
 │   └── iniciar_frontend.bat       # Script de ejecución individual del frontend
 │
+├── database/
+│   ├── init.sql                   # Base de datos docker PostgreSQL(Favoritos,Historial)
 ├── iniciar.bat                    # Script unificado de inicio rápido en Windows
 ├── docker-compose.yml             # Orquestación de contenedores (Frontend + Backend)
 ├── CHANGELOG.md                   # Historial oficial de cambios y versiones
@@ -164,9 +165,9 @@ docker network rm climachile-net
 - `GET /`: Estado general del backend e información de rutas.
 - `GET /api/weather?lat={lat}&lon={lon}&ciudad={ciudad}&region={region}`: Datos meteorológicos actuales, pronóstico por horas (24h) y diario (7 días).
 - `GET /api/search?q={nombre}`: Búsqueda y autocompletado de comunas y ciudades de Chile.
-- `GET /api/favorites`: Listado de ciudades favoritas almacenadas en SQLite.
-- `POST /api/favorites`: Guarda una nueva ciudad favorita en SQLite.
-- `DELETE /api/favorites/<id>`: Elimina un favorito de SQLite.
+- `GET /api/favorites`: Listado de ciudades favoritas almacenadas en PostgreSQL.
+- `POST /api/favorites`: Guarda una nueva ciudad favorita en PosgreSQL.
+- `DELETE /api/favorites/<id>`: Elimina un favorito de PosgreSQL.
 - `GET /api/history`: Últimas 20 consultas registradas.
 - `DELETE /api/history`: Limpia el historial de consultas.
 - `GET /api/status`: Estado de operatividad del servicio.
